@@ -1,8 +1,9 @@
 import { Be_Vietnam_Pro } from "next/font/google";
 import FloatingContact from './components/FloatingContact';
 import { Toaster } from 'react-hot-toast';
-import "./globals.css"; // Đảm bảo bạn có import css để nhận biến font
+import "./globals.css"; 
 
+// 1. Cấu hình Font và Metadata phải được đưa lên TRÊN CÙNG
 const beVietnamPro = Be_Vietnam_Pro({
   weight: ['400', '500', '700', '900'],
   subsets: ["vietnamese"],
@@ -14,12 +15,17 @@ export const metadata = {
   description: "Hệ thống đặt tour du lịch cao cấp",
 };
 
+// 2. Hàm render chính luôn nằm ở cuối cùng sau khi các cấu hình đã sẵn sàng
 export default function RootLayout({ children }) {
   return (
-    <html lang="vi" className={beVietnamPro.variable}>
-      <body className="antialiased">
+    <html lang="vi">
+      {/* Áp dụng class font biến toàn cục vào body để tối ưu hiển thị chữ tiếng Việt */}
+      <body className={`${beVietnamPro.variable} font-sans antialiased`}>
         {children}
-        <FloatingContact />
+        
+        {/* Chỉ gọi duy nhất FloatingContact ở đây */}
+        <FloatingContact /> 
+        
         <Toaster />
       </body>
     </html>

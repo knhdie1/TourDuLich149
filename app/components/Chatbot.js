@@ -1,14 +1,13 @@
 "use client";
-
-import { useState, useEffect, useRef } from "react";
 import Link from "next/link";
-import { Send, X, Bot } from "lucide-react";
-import axios from "axios"; // Đảm bảo bạn đã install bằng lệnh: npm install axios
+import { useState, useEffect, useRef } from "react";
+
+import { Send, X, Bot, User } from "lucide-react";
 
 export default function Chatbot() {
   const [isOpen, setIsOpen] = useState(false);
   const [messages, setMessages] = useState([
-    { sender: "bot", text: "Chào bạn! Mình là trợ lý ảo của Hoa Binh Travel. Bạn cần mình tư vấn điều gì? ✈️" }
+    { sender: "bot", text: "Xin chào! Em là trợ lý ảo của VietTravel. Em có thể giúp gì cho anh/chị ạ? ✈️" }
   ]);
   const [input, setInput] = useState("");
   const [isTyping, setIsTyping] = useState(false);
@@ -28,46 +27,59 @@ export default function Chatbot() {
   const handleClose = (e) => {
     if (e) {
       e.preventDefault();
-      e.stopPropagation(); // Ngăn chặn sự kiện nổi bọt
+      e.stopPropagation(); // CHỐT CHẶN: Ngăn chặn nhấn lần 2
     }
     setIsOpen(false);
+    // Phát lệnh HIỆN LẠI cho bộ icon
     window.dispatchEvent(new CustomEvent('closeChatbot'));
   };
 
-  // HÀM XỬ LÝ GỬI TIN NHẮN GỌI API THẬT
+  // CHUYỂN ĐỔI SANG THAO TÁC BẤT ĐỒNG BỘ GỌI API GEMINI RAG
   const handleSend = async () => {
-    if (!input.trim()) return;
+    if (!input.trim() || isTyping) return;
 
-    const userMsg = input;
-    // 1. Đẩy tin nhắn của User lên màn hình chat ngay lập tức
-    setMessages(prev => [...prev, { sender: "user", text: userMsg }]);
+    const userMessageText = input.trim();
+    setMessages(prev => [...prev, { sender: "user", text: userMessageText }]);
     setInput("");
-    setIsTyping(true); // Bật trạng thái AI đang gõ
+    setIsTyping(true);
 
     try {
-      // 2. Gọi API đến Backend Node.js của bạn
-      // Thay đổi URL 'http://localhost:5000/api/chat' cho đúng với port backend của bạn
-      const response = await axios.post("http://localhost:5000/api/chat", {
-        message: userMsg
+      // 1. Chuyển đổi lịch sử chat hiện tại sang định dạng chuẩn cấu hình SDK của Google
+      // Cấu trúc yêu cầu: { role: "user" | "model", parts: [{ text: "..." }] }
+      const formattedHistory = messages.map(msg => ({
+        role: msg.sender === "user" ? "user" : "model",
+        parts: [{ text: typeof msg.text === "string" ? msg.text : "" }]
+      }));
+
+      // 2. Gửi request POST đến API Route xử lý RAG (/api/chatbot)
+      const response = await fetch("/api/chatbot", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          message: userMessageText,
+          history: formattedHistory,
+        }),
       });
 
-      setIsTyping(false);
+      const data = await response.json();
 
-      if (response.data && response.data.reply) {
-        // 3. Đẩy câu trả lời thông minh của Gemini API lên màn hình
-        setMessages(prev => [...prev, { sender: "bot", text: response.data.reply }]);
+      // 3. Cập nhật phản hồi từ chatbot vào giao diện
+      if (response.ok && data.text) {
+        setMessages(prev => [...prev, { sender: "bot", text: data.text }]);
       } else {
-        setMessages(prev => [...prev, { sender: "bot", text: "Hệ thống đang bận, bạn vui lòng thử lại sau nhé!" }]);
+        setMessages(prev => [...prev, { sender: "bot", text: "Dạ, hệ thống đang bận một chút, anh/chị thử lại sau nhé." }]);
       }
-
     } catch (error) {
-      console.error("Lỗi kết nối Chatbot API:", error);
+      console.error("Lỗi kết nối API Chatbot:", error);
+      setMessages(prev => [...prev, { sender: "bot", text: "Kết nối mạng không ổn định. Vui lòng kiểm tra lại." }]);
+    } finally {
       setIsTyping(false);
-      setMessages(prev => [...prev, { sender: "bot", text: "Kết nối đến máy chủ thất bại. Vui lòng kiểm tra lại!" }]);
     }
   };
 
-  if (!isOpen) return null;
+  if (!isOpen) return null; // Sử dụng render điều kiện sạch sẽ
 
   return (
     <div className="fixed bottom-8 right-8 z-[10000] w-[90vw] md:w-[380px] animate-in slide-in-from-bottom-5">
@@ -79,9 +91,9 @@ export default function Chatbot() {
             <div className="w-9 h-9 bg-white/20 rounded-xl flex items-center justify-center border border-white/30">
               <Bot className="text-white" size={18} />
             </div>
-            {/* Đổi tên hiển thị cho chuẩn thương hiệu đồ án của bạn */}
             <h3 className="text-white font-black text-sm">Hoa Binh Travel AI</h3>
           </div>
+          {/* NÚT X - NHẤN PHÁT ĂN NGAY NHỜ STOP PROPAGATION */}
           <button 
             onClick={handleClose} 
             className="bg-white/10 hover:bg-white/20 p-2 rounded-xl text-white transition-all active:scale-90"
@@ -90,10 +102,11 @@ export default function Chatbot() {
           </button>
         </div>
 
-        {/* Content - Khu vực hiển thị đoạn chat */}
+        {/* Content */}
         <div ref={scrollRef} className="flex-1 overflow-y-auto p-5 space-y-4 bg-slate-50/50">
           {messages.map((msg, index) => (
             <div key={index} className={`flex ${msg.sender === 'user' ? 'justify-end' : 'justify-start'}`}>
+              {/* Thêm lớp 'whitespace-pre-line' để hỗ trợ tự động xuống hàng khi nhận format từ Markdown dữ liệu của Gemini */}
               <div className={`max-w-[80%] p-3.5 rounded-[20px] text-xs font-bold shadow-sm whitespace-pre-line ${
                 msg.sender === 'user' ? 'bg-blue-600 text-white rounded-br-none' : 'bg-white text-slate-700 rounded-bl-none'
               }`}>
@@ -101,14 +114,12 @@ export default function Chatbot() {
               </div>
             </div>
           ))}
-
-          {/* Hiệu ứng bong bóng ba chấm khi AI đang xử lý */}
+          
+          {/* Hiệu ứng hiển thị trạng thái đang xử lý câu trả lời */}
           {isTyping && (
             <div className="flex justify-start">
-              <div className="bg-white text-slate-400 p-3.5 rounded-[20px] rounded-bl-none text-xs shadow-sm flex items-center gap-1">
-                <span className="w-1.5 h-1.5 bg-slate-400 rounded-full animate-bounce" style={{ animationDelay: '0ms' }}></span>
-                <span className="w-1.5 h-1.5 bg-slate-400 rounded-full animate-bounce" style={{ animationDelay: '150ms' }}></span>
-                <span className="w-1.5 h-1.5 bg-slate-400 rounded-full animate-bounce" style={{ animationDelay: '300ms' }}></span>
+              <div className="bg-white text-slate-400 p-3 rounded-[20px] rounded-bl-none text-[11px] font-medium shadow-sm animate-pulse">
+                VietTravel AI đang xử lý...
               </div>
             </div>
           )}
@@ -118,14 +129,18 @@ export default function Chatbot() {
         <div className="p-5 bg-white border-t border-slate-100">
           <div className="flex gap-2 bg-slate-50 p-1.5 rounded-2xl border border-slate-100 focus-within:bg-white focus-within:border-blue-600 transition-all">
             <input
-              type="text" 
-              value={input}
+              type="text" value={input}
               onChange={(e) => setInput(e.target.value)}
-              onKeyDown={(e) => e.key === 'Enter' && handleSend()} // Cập nhật từ onKeyPress sang onKeyDown chuẩn React mới
-              placeholder="Hỏi về tour, giá vé, chính sách hoàn hủy..."
-              className="flex-1 bg-transparent px-3 py-1.5 font-bold text-slate-700 outline-none text-[13px]"
+              onKeyDown={(e) => e.key === 'Enter' && handleSend()}
+              placeholder="Nhập câu hỏi của anh/chị..."
+              disabled={isTyping}
+              className="flex-1 bg-transparent px-3 py-1.5 font-bold text-slate-700 outline-none text-[13px] disabled:opacity-50"
             />
-            <button onClick={handleSend} className="bg-blue-600 text-white p-2.5 rounded-xl active:scale-90 transition-all">
+            <button 
+              onClick={handleSend} 
+              disabled={isTyping}
+              className="bg-blue-600 text-white p-2.5 rounded-xl active:scale-90 transition-all disabled:bg-slate-300 disabled:scale-100"
+            >
               <Send size={16} />
             </button>
           </div>
