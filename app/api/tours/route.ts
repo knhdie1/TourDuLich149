@@ -188,6 +188,7 @@ export async function GET(req: NextRequest) {
   }
 }
 
+// POST Create new tour
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
@@ -201,9 +202,16 @@ export async function POST(req: NextRequest) {
         category_id: Number(validatedData.category_id),
         description: validatedData.description,
         sub_title: (validatedData as any).sub_title,
-        is_active: true
+        is_active: true,
+        // ĐÃ SỬA: Thêm dòng này để khi admin lưu tour mới sẽ nhận luôn link map_url
+        map_url: (validatedData as any).map_url || null
       }
     });
+
+    // ĐÃ SỬA: Xóa sạch bộ nhớ đệm cũ để dữ liệu bản đồ mới hiển thị ngay lập tức lên web
+    if (cache && typeof cache.clear === 'function') {
+      cache.clear();
+    }
 
     return NextResponse.json({ 
       success: true, 

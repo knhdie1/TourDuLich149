@@ -14,7 +14,7 @@ export function ChatProvider({ children }) {
     setIsMounted(true);
 
     // Đọc lịch sử chat thực tế dưới máy người dùng
-    const savedMessages = localStorage.getItem('hoabinh_chat_history');
+    const savedMessages = localStorage.getItem('viet_chat_history');
     if (savedMessages) {
       try { 
         setMessages(JSON.parse(savedMessages)); 
