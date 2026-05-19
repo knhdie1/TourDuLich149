@@ -5,8 +5,9 @@ import dynamic from "next/dynamic";
 import { MapPin, Info, CheckCircle2, Globe, Star, ShieldCheck } from "lucide-react";
 import { notFound } from "next/navigation";
 import Image from 'next/image';
+import TourMap from "../../components/TourMap"; // Import chuẩn dùng dấu alias @
 
-// Lazy load heavy components
+// Lazy load các component nặng thông thường (không tắt SSR nên chạy mượt ở Server)
 const BookingForm = dynamic(() => import("../../components/BookingForm"), {
   loading: () => <div className="h-64 bg-slate-100 rounded-2xl animate-pulse" />
 });
@@ -17,7 +18,7 @@ const ReviewSystem = dynamic(() => import("../../components/ReviewSystem"), {
 
 // SEO Mượt mà: Tự động đổi tiêu đề trang theo tên Tour
 export async function generateMetadata({ params }) {
-  // BẮT BUỘC: Phải await params trước khi dùng id
+  // BẮT BUỘC: Phải await params trước khi dùng id theo chuẩn Next.js 15
   const { id } = await params; 
   
   // Validate id
@@ -180,34 +181,13 @@ export default async function TourDetailPage({ params }) {
                 )}
               </div>
             </div>
-{/* Bản đồ */}
-<div className="bg-slate-50 rounded-[40px] p-8 md:p-12 border border-slate-100">
-  <h3 className="text-2xl font-black mb-6 flex items-center gap-3">
-    <MapPin className="text-blue-600" /> Điểm đến trên bản đồ
-  </h3>
-  <div className="rounded-2xl overflow-hidden h-[400px] bg-slate-200 relative shadow-inner border border-slate-100">
-    {tour.map_url ? (
-      /* KHÔNG DÙNG KEY: Nhúng trực tiếp iframe chính xác của tour này từ DB */
-      <iframe
-        src={tour.map_url}
-        className="w-full h-full border-0"
-        allowFullScreen
-        loading="lazy"
-        referrerPolicy="no-referrer-when-downgrade"
-        title={tour.title}
-      ></iframe>
-    ) : (
-      /* Trạng thái hiển thị dự phòng nếu bạn chưa kịp chèn link nhúng vào Database */
-      <div className="absolute inset-0 flex items-center justify-center bg-slate-100">
-        <div className="text-center">
-          <MapPin size={48} className="text-slate-400 mx-auto mb-4" />
-          <p className="text-slate-500 font-bold">{tour.location_name}</p>
-          <p className="text-slate-400 text-sm mt-2 italic">Bản đồ tour đang được cập nhật...</p>
-        </div>
-      </div>
-    )}
-  </div>
-</div>
+
+            {/* Gọi bản đồ thông qua Client Component trung gian đã được bóc tách */}
+            <TourMap 
+              mapUrl={tour.map_url} 
+              tourTitle={tour.title} 
+              locationName={tour.location_name} 
+            />
 
             {/* Đánh giá */}
             <ReviewSystem tourId={tour.id} />
